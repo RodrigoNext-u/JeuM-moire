@@ -13,12 +13,12 @@ public class Chrono {
     public Chrono(JLabel label) {
         this.label = label;
         this.seconds = 0;
-        this.label.setText("Time: 0");
+        this.label.setText("Temps: 0");
         this.timer = new Timer(1000, new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 seconds++;
-                label.setText("Time: " + seconds);
+                label.setText("Temps: " + seconds);
             }
         });
     }

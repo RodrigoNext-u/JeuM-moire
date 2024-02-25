@@ -5,7 +5,6 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
-import java.util.Collections;
 import javax.swing.Timer;
 
 import java.io.BufferedReader;
@@ -24,8 +23,8 @@ public class JeuMémoire extends JFrame {
 	private static final long serialVersionUID = 1L;
 	private JButton[][] buttons;
     private ImageIcon[][] icons;
-    private Image[] images; // Stocke les images originales
-    private int[] imageIndices; // Stocke les indices des images pour les paires
+    private Image[] images;
+    private int[] imageIndices;
     private int[][] numbers;
     private int rows = 4;
     private int cols = 4;
@@ -49,8 +48,8 @@ public class JeuMémoire extends JFrame {
 
         JPanel mainPanel = new JPanel(new BorderLayout());
         JPanel gamePanel = new JPanel(new GridLayout(rows, cols));
-        attemptsLabel = new JLabel("Attempts Left: " + remainingAttempts);
-        timerLabel = new JLabel("Time: 0");
+        attemptsLabel = new JLabel("Tentatives restantes: " + remainingAttempts);
+        timerLabel = new JLabel("Temps: 0");
         JPanel controlPanel = new JPanel();
         
         mainPanel.add(gamePanel, BorderLayout.CENTER);
@@ -63,13 +62,12 @@ public class JeuMémoire extends JFrame {
         numbers = new int[rows][cols];
         cardsOpened = new boolean[rows][cols];
 
-        // Charger les images
+        // Charge les images
         loadImages();
 
-        // Mélanger les indices des images
+        // Mélange les indices des images
         shuffleImageIndices();
 
-        // Initialiser les boutons et assigner les paires d'images
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
                 buttons[i][j] = new JButton();
@@ -80,9 +78,12 @@ public class JeuMémoire extends JFrame {
                 buttons[i][j].addActionListener(new ActionListener() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
-                        
-                    	if (!cardsOpened[finalI][finalJ] && remainingAttempts >= 0) {
-                    		timer.start();
+                        if (!cardsOpened[finalI][finalJ] && remainingAttempts >= 0) {
+                            if (openedCards == 1 && finalI == firstX && finalJ == firstY) {
+                                // Ne fait rien si l'utilisateur clique une deuxième fois sur la même carte
+                                return;
+                            }
+                            timer.start();
                             if (openedCards == 0) {
                                 firstX = finalI;
                                 firstY = finalJ;
@@ -90,12 +91,8 @@ public class JeuMémoire extends JFrame {
                                 openedCards++;
                             } else if (openedCards == 1) {
                                 remainingAttempts--;
-                                if (remainingAttempts >= 0) {
-                                    attemptsLabel.setText("Attempts Left: " + remainingAttempts);
-                                }
-                                
+                                attemptsLabel.setText("Tentatives restantes: " + remainingAttempts);
 
-                                
                                 buttons[finalI][finalJ].setIcon(icons[finalI][finalJ]);
                                 if (numbers[firstX][firstY] == numbers[finalI][finalJ]) {
                                     cardsOpened[firstX][firstY] = true;
@@ -112,7 +109,10 @@ public class JeuMémoire extends JFrame {
                                             buttons[firstX][firstY].setIcon(null);
                                             buttons[finalI][finalJ].setIcon(null);
                                             openedCards = 0;
-                                            if (checkGameEnd()) {
+                                            if (remainingAttempts <= 0) {
+                                                timer.stop();
+                                                endGame(false);
+                                            } else if (checkGameEnd()) {
                                                 endGame(false);
                                             }
                                         }
@@ -120,15 +120,21 @@ public class JeuMémoire extends JFrame {
                                     flipBackTimer.setRepeats(false);
                                     flipBackTimer.start();
                                 }
+                                if (remainingAttempts <= 0) {
+                                    timer.stop();
+                                    endGame(false);
+                                }
                             }
                         }
                     }
+
+
                 });
             }
         }
 
         JMenuItem newGameMenuItem = new JMenuItem("Nouvelle partie");
-        JMenuItem bestScoresMenuItem = new JMenuItem("Best Scores");
+        JMenuItem bestScoresMenuItem = new JMenuItem("Meilleurs scores");
         bestScoresMenuItem.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -180,7 +186,7 @@ public class JeuMémoire extends JFrame {
             imageIndices[i * 2] = i;
             imageIndices[i * 2 + 1] = i;
         }
-        // Mélanger les indices
+        // Mélange les indices
         for (int i = 0; i < imageIndices.length; i++) {
             int randomIndex = (int) (Math.random() * imageIndices.length);
             int temp = imageIndices[i];
@@ -190,11 +196,11 @@ public class JeuMémoire extends JFrame {
     }
 
     private void startNewGame() {
-        attemptsLabel.setText("Attempts Left: " + remainingAttempts);
+        attemptsLabel.setText("Tentatives restantes: " + remainingAttempts);
 
         // Réinitialise le compteur de secondes avant de démarrer le timer
         secondsElapsed = 0;
-        timerLabel.setText("Time: 0");
+        timerLabel.setText("Temps: 0");
 
         if (timer != null) {
             timer.stop();
@@ -204,16 +210,11 @@ public class JeuMémoire extends JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
                 secondsElapsed++;
-                timerLabel.setText("Time: " + secondsElapsed);
+                timerLabel.setText("Temps: " + secondsElapsed);
             }
         });
 
-        
-
-        // Démarrer le timer directement dans startNewGame() peut ne pas être idéal si vous souhaitez démarrer le timer après le premier "try".
-        // Considérez de démarrer le timer sur le premier clic de l'utilisateur sur une carte au lieu d'ici si c'est le cas.
-
-        generateIcons(); // Assurez-vous que cette méthode prépare correctement les icônes pour la nouvelle partie
+        generateIcons(); // Generation des icones
         resetCardsOpened(); // Réinitialise l'état d'ouverture des cartes
     }
 
@@ -249,22 +250,14 @@ public class JeuMémoire extends JFrame {
     }
     
     private void endGame(boolean won) {
-        timer.stop(); // Assurez-vous que timer est de type javax.swing.Timer
+        timer.stop();
         if (won) {
-            // Affiche un message de victoire avec le temps écoulé
-            JOptionPane.showMessageDialog(this, "Bravo ! Vous avez gagné !\nTime En: " + secondsElapsed + " secondes");
-            // Ajoute le temps écoulé (en secondes) à la liste des meilleurs scores
-            bestScores.add((float)secondsElapsed);
-            // Trie les meilleurs scores
-            Collections.sort(bestScores);
-            // Garde seulement les 3 meilleurs scores
+            JOptionPane.showMessageDialog(this, "Bravo ! Vous avez gagné !\n En: " + secondsElapsed + " secondes");
             while (bestScores.size() > 3) {
                 bestScores.remove(bestScores.size() - 1);
             }
-            // Appelle une méthode pour sauvegarder les meilleurs scores
             saveBestScores();
         } else {
-            // Affiche un message de défaite
             JOptionPane.showMessageDialog(this, "Game over! Vous avez perdu!");
         }
     }
@@ -306,10 +299,10 @@ public class JeuMémoire extends JFrame {
     }
 
     private void showBestScoresDialog() {
-        loadBestScores(); // Assurez-vous que la liste est à jour
+        loadBestScores();
         StringBuilder scoresText = new StringBuilder("Meilleurs Scores:\n");
         for (Float score : bestScores) {
-            scoresText.append(score).append(" seconds\n");
+            scoresText.append(score).append(" secondes\n");
         }
         JOptionPane.showMessageDialog(this, scoresText.toString(), "Meilleurs Scores", JOptionPane.INFORMATION_MESSAGE);
     }
